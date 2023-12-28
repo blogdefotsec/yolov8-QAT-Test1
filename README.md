@@ -3,7 +3,7 @@ Implementation of **Focal and Global Knowledge Distillation for Detectors**(http
 ## Usage
 - Multi GPU
 ```
-python -m torch.distributed.run distill --nproc_per_node {} distill_train.py --dataset-dir {} --dataset-config {} --teacher-config {} --teacher-weight {} --student-config {} --student-weight
+python -m torch.distributed.run --nproc_per_node {} distill_train.py --dataset-dir {} --dataset-config {} --teacher-config {} --teacher-weight {} --student-config {} --student-weight
 ```
 ## Results
 Experiment Ongoing
