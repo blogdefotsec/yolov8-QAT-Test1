@@ -32,6 +32,7 @@ from ultralytics.utils.files import get_latest_run
 from ultralytics.utils.torch_utils import (EarlyStopping, ModelEMA, de_parallel, init_seeds, one_cycle, select_device,
                                            strip_optimizer)
 
+WORLD_SIZE = os.environ.get("WORLD_SIZE", 1)
 
 class BaseTrainer:
     """
@@ -161,7 +162,7 @@ class BaseTrainer:
         elif isinstance(self.args.device, (tuple, list)):  # i.e. device=[0, 1, 2, 3] (multi-GPU from CLI is list)
             world_size = len(self.args.device)
         elif torch.cuda.is_available():  # i.e. device=None or device='' or device=number
-            world_size = 1  # default to device 0
+            world_size = int(WORLD_SIZE)  # default to device 0
         else:  # i.e. device='cpu' or 'mps'
             world_size = 0
 
@@ -283,7 +284,7 @@ class BaseTrainer:
         self.scheduler.last_epoch = self.start_epoch - 1  # do not move
         self.run_callbacks('on_pretrain_routine_end')
 
-    def _do_train(self, world_size=1):
+    def _do_train(self, world_size = WORLD_SIZE):
         """Train completed, evaluate and plot if specified by arguments."""
         if world_size > 1:
             self._setup_ddp(world_size)

@@ -198,7 +198,7 @@ class BaseModel(nn.Module):
             LOGGER.info(f'Transferred {len(csd)}/{len(self.model.state_dict())} items from pretrained weights')
 
     def loss(self, batch, preds=None):
-        """
+        """ 
         Compute loss.
 
         Args:
