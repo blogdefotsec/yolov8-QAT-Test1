@@ -84,6 +84,7 @@ class AutoBackend(nn.Module):
                  data=None,
                  fp16=False,
                  fuse=True,
+                 qat=None,
                  verbose=True):
         """
         Initialize the AutoBackend for inference.
@@ -102,6 +103,7 @@ class AutoBackend(nn.Module):
         nn_module = isinstance(weights, torch.nn.Module)
         pt, jit, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, paddle, ncnn, triton = \
             self._model_type(w)
+        if qat: fp16 = False
         fp16 &= pt or jit or onnx or xml or engine or nn_module or triton  # FP16
         nhwc = coreml or saved_model or pb or tflite or edgetpu  # BHWC formats (vs torch BCWH)
         stride = 32  # default stride
@@ -109,7 +111,7 @@ class AutoBackend(nn.Module):
 
         # Set device
         cuda = torch.cuda.is_available() and device.type != 'cpu'  # use CUDA
-        if cuda and not any([nn_module, pt, jit, engine, onnx]):  # GPU dataloader formats
+        if (cuda and not any([nn_module, pt, jit, engine, onnx])) or qat == 'native':  # GPU dataloader formats
             device = torch.device('cpu')
             cuda = False
 
@@ -125,7 +127,8 @@ class AutoBackend(nn.Module):
                 kpt_shape = model.kpt_shape  # pose-only
             stride = max(int(model.stride.max()), 32)  # model stride
             names = model.module.names if hasattr(model, 'module') else model.names  # get class names
-            model.half() if fp16 else model.float()
+            if not qat:
+                model.half() if fp16 else model.float()
             self.model = model  # explicitly assign for to(), cpu(), cuda(), half()
             pt = True
         elif pt:  # PyTorch

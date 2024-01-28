@@ -35,7 +35,8 @@ def _log_tensorboard_graph(trainer):
         im = torch.zeros((1, 3, *imgsz), device=p.device, dtype=p.dtype)  # input image (must be zeros, not empty)
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=UserWarning)  # suppress jit trace warning
-            WRITER.add_graph(torch.jit.trace(de_parallel(trainer.model), im, strict=False), [])
+            # Disable Tensorboard graph drawing becasue it creates so many warnings
+            # WRITER.add_graph(torch.jit.trace(de_parallel(trainer.model), im, strict=False), [])
     except Exception as e:
         LOGGER.warning(f'WARNING ⚠️ TensorBoard graph visualization failure {e}')
 

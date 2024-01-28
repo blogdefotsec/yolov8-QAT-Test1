@@ -32,7 +32,16 @@ from ultralytics.utils import LOGGER, TQDM, callbacks, colorstr, emojis
 from ultralytics.utils.checks import check_imgsz
 from ultralytics.utils.ops import Profile
 from ultralytics.utils.torch_utils import de_parallel, select_device, smart_inference_mode
+from copy import deepcopy
+from torch.ao.quantization import disable_observer, convert
 
+def convert2qat(model:torch.nn.Module):
+    _model = model.to("cpu").eval()
+    quantized_model = convert(_model, inplace=False)
+    quantized_model.eval()
+    model.to("cuda")
+
+    return quantized_model
 
 class BaseValidator:
     """
@@ -101,7 +110,7 @@ class BaseValidator:
         self.callbacks = _callbacks or callbacks.get_default_callbacks()
 
     @smart_inference_mode()
-    def __call__(self, trainer=None, model=None):
+    def __call__(self, trainer=None, model=None, qat = False):
         """Supports validation of a pre-trained model if passed or a model being trained if trainer is passed (trainer
         gets priority).
         """
@@ -110,8 +119,9 @@ class BaseValidator:
         if self.training:
             self.device = trainer.device
             self.data = trainer.data
-            self.args.half = self.device.type != 'cpu'  # force FP16 val during training
-            model = trainer.ema.ema or trainer.model
+            self.args.half = (self.device.type != 'cpu' and (not trainer.qat))  # force FP16 val during training
+            self.args.qat = hasattr(trainer, "qat")
+            model = trainer.ema.ema if trainer.ema is not None else trainer.model
             model = model.half() if self.args.half else model.float()
             # self.model = model
             self.loss = torch.zeros_like(trainer.loss_items, device=trainer.device)
@@ -123,7 +133,8 @@ class BaseValidator:
                                 device=select_device(self.args.device, self.args.batch),
                                 dnn=self.args.dnn,
                                 data=self.args.data,
-                                fp16=self.args.half)
+                                fp16=self.args.half,
+                                qat = qat)
             # self.model = model
             self.device = model.device  # update device
             self.args.half = model.fp16  # update half
