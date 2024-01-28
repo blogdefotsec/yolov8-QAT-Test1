@@ -43,6 +43,7 @@ def load_quantized_model(path, cfg, nc ):
     convert(model, inplace=True)
     #quant_module_change(model)
     model.load_state_dict(torch.load(path)['model'])
+    print("load complete")
     return model
 
 
@@ -467,6 +468,6 @@ class PytorchQuantizationTrainer(DetectionTrainer):
                 if f is self.best:
                     LOGGER.info(f'\nValidating {f}...')
                     self.validator.args.plots = self.args.plots
-                    self.metrics = self.validator(model=model, qat = True)
+                    self.metrics = self.validator(model=model, qat = self.qat)
                     self.metrics.pop('fitness', None)
                     self.run_callbacks('on_fit_epoch_end')
