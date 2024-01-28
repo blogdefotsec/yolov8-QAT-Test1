@@ -19,7 +19,8 @@ def train(args):
     overrides['data'] = args.data_config
     trainer = PytorchQuantizationTrainer(cfg = DEFAULT_CFG_DICT.copy(), overrides=overrides)
     trainer.model = trainer.get_model(args.model_config,
-                                       args.pretrained_weight)
+                                       args.pretrained_weight,
+                                       backend = args.quant_backend)
 
     results = trainer.train()
     return results
@@ -30,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--model-config", type=str, default = 'yolov8s.yaml')
     parser.add_argument("--pretrained-weight", type=str, default = 'yolo8s.pt')
     parser.add_argument("--data-config", type=str, default = 'coco.yaml')
+    parser.add_argument("--quant-backend", type=str, default = 'qnnpack')
     args = parser.parse_args()
     train(args)
 

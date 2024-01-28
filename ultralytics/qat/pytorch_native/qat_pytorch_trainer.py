@@ -24,7 +24,7 @@ from copy import deepcopy
 import os
 import time
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, TQDM, __version__, callbacks,  colorstr, emojis
-
+BACKEND = "qnnpack"
 WORLD_SIZE = os.environ.get("WORLD_SIZE", 1)
 def convert2qat(model):
     _model = deepcopy(model).to("cpu").eval()
@@ -34,15 +34,18 @@ def convert2qat(model):
 
     return quantized_model
 
-def load_quantized_model(path, cfg, nc ):
+def load_quantized_model(path, cfg, nc):
+
     Conv.default_act = nn.ReLU()
+    dicts = torch.load(path, map_location='cpu')
+
     model = QuantYolo(cfg = cfg, ch = 3, nc=  nc, verbose = False)
     model.fuse_model()
-    model.qconfig = get_default_qat_qconfig('x86')
+    model.qconfig = get_default_qat_qconfig(dicts['backend'])
     prepare_qat(model, inplace =True)
     convert(model, inplace=True)
     #quant_module_change(model)
-    model.load_state_dict(torch.load(path)['model'])
+    model.load_state_dict(dicts['model'])
     print("load complete")
     return model
 
@@ -163,7 +166,7 @@ class PytorchQuantizationTrainer(DetectionTrainer):
         include = {'imgsz', 'data', 'task', 'single_cls'}  # only remember these arguments when loading a PyTorch model
         return {k: v for k, v in args.items() if k in include}
     
-    def get_model(self, cfg=None, weights=None, verbose=True):
+    def get_model(self, cfg=None, weights=None, verbose=True, backend = BACKEND):
         """_summary_
 
         Args:
@@ -182,11 +185,13 @@ class PytorchQuantizationTrainer(DetectionTrainer):
         model.load_state_dict(torch.load(weights)['model'].state_dict())
         # quant_module_change(model)
         model.fuse_model()
-        model.qconfig = get_default_qat_qconfig('x86')
+        model.qconfig = get_default_qat_qconfig(backend)
+        model.backend = backend
         prepare_qat(model, inplace = True)
         quantized_model = convert(model.to("cpu").eval(), inplace=False)
         quantized_model.eval()
         quantized_model(torch.randn(1,3,640,640, dtype=torch.float))
+        print(f"Using QConfig for {backend} backend")
 
         return model
     
@@ -443,6 +448,7 @@ class PytorchQuantizationTrainer(DetectionTrainer):
             'epoch': self.epoch,
             'best_fitness': self.best_fitness,
             'model': quantized_model.state_dict(),
+            'backend': self.model.backend,
             # 'ema': self.ema.ema.state_dict(),
             # 'updates': self.ema.updates,
             'optimizer': self.optimizer.state_dict(),
